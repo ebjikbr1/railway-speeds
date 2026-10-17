@@ -257,7 +257,14 @@ q.addEventListener('input',apply);document.getElementById('openAll').onclick=()=
 '''
 
 PWA_REGISTER = r'''<script>
-if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
+if ('serviceWorker' in navigator) window.addEventListener('load',async()=>{
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!refreshing){refreshing=true;location.reload()}});
+  const registration=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+  if(registration.waiting) registration.waiting.postMessage('SKIP_WAITING');
+  registration.addEventListener('updatefound',()=>{const worker=registration.installing;if(worker)worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)worker.postMessage('SKIP_WAITING')})});
+  registration.update();
+});
 </script>'''
 
 
@@ -324,7 +331,7 @@ def main():
     icon = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="92" fill="#123a59"/><path d="M95 350h322v54H95zM128 108h256v188H128z" fill="#fff"/><path d="M160 147h192v28H160zm0 59h192v28H160zm0 59h125v28H160z" fill="#198754"/><circle cx="372" cy="350" r="54" fill="#d97819"/><path d="m348 350 16 17 34-39" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/></svg>'''
     (OUT / "icon.svg").write_text(icon, encoding="utf-8")
     cache_files = ["./", "index.html", "manifest.webmanifest", "icon.svg", "source.xlsx", *PAGES.keys()]
-    sw = f'''const CACHE="speeds-v2";const FILES={json.dumps(cache_files, ensure_ascii=False)};self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener("fetch",e=>{{if(e.request.method!=="GET")return;e.respondWith(caches.match(e.request,{{ignoreSearch:true}}).then(hit=>hit||fetch(e.request).then(r=>{{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}}).catch(()=>caches.match("index.html"))))}});'''
+    sw = f'''const CACHE="speeds-v3";const FILES={json.dumps(cache_files, ensure_ascii=False)};self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener("message",e=>{{if(e.data==="SKIP_WAITING")self.skipWaiting()}});self.addEventListener("fetch",e=>{{if(e.request.method!=="GET")return;if(e.request.mode==="navigate"){{e.respondWith(fetch(e.request).then(r=>{{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}}).catch(()=>caches.match(e.request,{{ignoreSearch:true}}).then(hit=>hit||caches.match("index.html"))));return}}e.respondWith(caches.match(e.request).then(hit=>hit||fetch(e.request).then(r=>{{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}})))}});'''
     (OUT / "sw.js").write_text(sw, encoding="utf-8")
     shutil.copy2(SOURCE, OUT / "source.xlsx")
     (OUT / "validation.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

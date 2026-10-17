@@ -665,5 +665,12 @@ if(section&&sectionNames[section]){document.getElementById('chosenSection').text
 function apply(){const s=q.value.trim().toLocaleLowerCase('ru');let n=0;groups.forEach(g=>{const inSection=!section||g.dataset.segments.split(' ').includes(section);const ok=inSection&&(!s||g.textContent.toLocaleLowerCase('ru').includes(s));g.hidden=!ok;if(ok)n++});status.textContent=`Разделов: ${n}`}
 q.addEventListener('input',apply);document.getElementById('openAll').onclick=()=>groups.filter(g=>!g.hidden).forEach(g=>g.open=true);document.getElementById('closeAll').onclick=()=>groups.forEach(g=>g.open=false);document.getElementById('toggleNotes').onclick=e=>{const visible=document.body.classList.toggle('notes-visible');e.currentTarget.classList.toggle('active',visible);e.currentTarget.title=visible?'Скрыть примечания':'Показать примечания';e.currentTarget.setAttribute('aria-label',e.currentTarget.title)};apply();
 </script><script>
-if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
+if ('serviceWorker' in navigator) window.addEventListener('load',async()=>{
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!refreshing){refreshing=true;location.reload()}});
+  const registration=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+  if(registration.waiting) registration.waiting.postMessage('SKIP_WAITING');
+  registration.addEventListener('updatefound',()=>{const worker=registration.installing;if(worker)worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)worker.postMessage('SKIP_WAITING')})});
+  registration.update();
+});
 </script></body></html>
