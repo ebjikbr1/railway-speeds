@@ -1,0 +1,19 @@
+{
+  "name": "Скорости по станциям",
+  "short_name": "Скорости",
+  "description": "Скорости движения по станциям и перегонам",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef3f6",
+  "theme_color": "#123a59",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
